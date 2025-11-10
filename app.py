@@ -22,11 +22,12 @@ PAGES_BEFORE_AFTER = 10
 # Helper functions
 # ------------------------------------------------------------------
 def parse_input(input_str):
-    """Parse input that can be either CIDR notation or IP with subnet mask.
+    """Parse input that can be CIDR notation, IP with subnet mask, or IP with wildcard mask.
     
     Accepts:
     - CIDR notation: 192.168.1.1/24
     - IP with subnet mask: 192.168.1.1 255.255.255.0
+    - IP with wildcard mask: 192.168.1.1 0.0.0.255
     """
     if not input_str:
         return None
@@ -38,12 +39,26 @@ def parse_input(input_str):
         if "/" in input_str:
             return ipaddress.IPv4Network(input_str, strict=False)
         
-        # Try to parse as IP with subnet mask (space-separated)
+        # Try to parse as IP with mask (space-separated)
         parts = input_str.split()
         if len(parts) == 2:
             ip_part = parts[0].strip()
             mask_part = parts[1].strip()
-            return ipaddress.IPv4Network(f"{ip_part}/{mask_part}", strict=False)
+            
+            # First, try to parse as subnet mask (default behavior)
+            try:
+                return ipaddress.IPv4Network(f"{ip_part}/{mask_part}", strict=False)
+            except (ValueError, ipaddress.AddressValueError):
+                # If that fails, try to parse as wildcard mask
+                try:
+                    wildcard = ipaddress.IPv4Address(mask_part)
+                    # Convert wildcard mask to subnet mask: subnet = 255.255.255.255 - wildcard
+                    subnet_int = 0xFFFFFFFF - int(wildcard)
+                    subnet_mask = ipaddress.IPv4Address(subnet_int)
+                    # Use the subnet mask to create the network
+                    return ipaddress.IPv4Network(f"{ip_part}/{subnet_mask}", strict=False)
+                except (ValueError, ipaddress.AddressValueError):
+                    return None
         
         # If single value, default to /32
         return ipaddress.IPv4Network(f"{input_str}/32", strict=False)
@@ -307,4 +322,4 @@ def index():
 # Run only when executed directly (python app.py)
 # ------------------------------------------------------------------
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5001, debug=False)
+    app.run(host="0.0.0.0", port=5001, debug=False)

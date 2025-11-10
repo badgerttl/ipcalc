@@ -34,8 +34,8 @@
 
     <form method="POST" class="input-form" id="calc-form">
       <div class="input-group">
-        <label for="cidr">IP Address (CIDR or with Subnet Mask)</label>
-        <input type="text" id="cidr" name="cidr" placeholder="192.168.1.1/24 or 192.168.1.1 255.255.255.0" value="{{ cidr }}" required />
+        <label for="cidr">IP Address (CIDR, Subnet Mask, or Wildcard Mask)</label>
+        <input type="text" id="cidr" name="cidr" placeholder="192.168.1.1/24, 192.168.1.1 255.255.255.0, or 192.168.1.1 0.0.0.255" value="{{ cidr }}" required />
       </div>
       <input type="hidden" id="page-input" name="page" value="" />
       <button type="submit" class="btn">Calculate</button>

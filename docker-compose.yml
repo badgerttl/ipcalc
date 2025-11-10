@@ -3,13 +3,13 @@ version: '3.9'
 services:
   web:
     build: .
-    container_name: ipcalc
+    container_name: subnet-calc
     restart: unless-stopped
     ports:
-      - "5001:5001"
+      - "127.0.0.1:5001:5001"
     volumes:
       - .:/app
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
-    command: flask run --host=127.0.0.1 --port=5001
+    command: flask run --host=0.0.0.0 --port=5001

@@ -4,7 +4,7 @@ A web-based IPv4 subnet calculator built with Flask that provides comprehensive 
 
 ## Features
 
-- **Flexible Input Formats**: Accepts both CIDR notation (e.g., `192.168.1.1/24`) and IP with subnet mask (e.g., `192.168.1.1 255.255.255.0`)
+- **Flexible Input Formats**: Accepts CIDR notation (e.g., `192.168.1.1/24`), IP with subnet mask (e.g., `192.168.1.1 255.255.255.0`), or IP with wildcard mask (e.g., `192.168.1.1 0.0.0.255`)
 - **Comprehensive Network Information**:
   - Network address and broadcast address
   - Subnet mask (decimal and binary)
@@ -72,6 +72,7 @@ docker run -p 5001:5001 ipcalc
 1. Enter an IP address in one of the following formats:
    - CIDR notation: `192.168.1.1/24`
    - IP with subnet mask: `192.168.1.1 255.255.255.0`
+   - IP with wildcard mask: `192.168.1.1 0.0.0.255`
    - Single IP (defaults to /32): `192.168.1.1`
 
 2. Click "Calculate" to view network information
