@@ -12,4 +12,4 @@ services:
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
-    command: flask run --host=0.0.0.0 --port=5001
+    command: flask run --host=127.0.0.1 --port=5001
