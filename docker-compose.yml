@@ -3,7 +3,7 @@ version: '3.9'
 services:
   web:
     build: .
-    container_name: subnet-calc
+    container_name: ipcalc
     restart: unless-stopped
     ports:
       - "127.0.0.1:5001:5001"
