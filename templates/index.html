@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IPv4 Subnet Calculator</title>
+
+  <!-- APPLY THEME BEFORE ANYTHING RENDERS -->
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const shouldBeDark = saved === 'dark' || (!saved && prefersDark);
+      if (shouldBeDark) {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
+
+  <!-- FAVICONS -->
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon-180.png') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>IPv4 Subnet Calculator</h1>
+      <button id="theme-toggle">Moon</button>
+    </header>
+
+    <form method="POST" class="input-form" id="calc-form">
+      <div class="input-group">
+        <label for="cidr">IP Address (CIDR or with Subnet Mask)</label>
+        <input type="text" id="cidr" name="cidr" placeholder="192.168.1.1/24 or 192.168.1.1 255.255.255.0" value="{{ cidr }}" required />
+      </div>
+      <input type="hidden" id="page-input" name="page" value="" />
+      <button type="submit" class="btn">Calculate</button>
+    </form>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+    <!-- Copy Button -->
+    <div class="copy-section">
+      <button id="copy-btn" class="btn-copy">Copy Summary</button>
+      <pre id="summary-data" style="display:none;">{{ result.vertical }}</pre>
+    </div>
+
+    <!-- Result Table – Single Column Format -->
+    <div class="result-table">
+      <div class="row"><span class="label">Network Address:</span> {{ result.network }}</div>
+      <div class="row"><span class="label">Binary ID:</span> {{ result.binary_id }}</div>
+      <div class="row"><span class="label">Subnet Mask:</span> {{ result.netmask }}</div>
+      <div class="row"><span class="label">Binary Subnet Mask:</span> {{ result.binary_mask }}</div>
+      <div class="row"><span class="label">Wildcard Mask:</span> {{ result.wildcard }}</div>
+      <div class="row"><span class="label">Broadcast Address:</span> {{ result.broadcast }}</div>
+      <div class="row"><span class="label">CIDR Notation:</span> {{ result.cidr_full }}</div>
+      <div class="row"><span class="label">Usable Host IP Range:</span> {{ result.host_min }} - {{ result.host_max }}</div>
+      <div class="row"><span class="label">Number of Usable Hosts:</span> {{ result.hosts_usable }}</div>
+      <div class="row"><span class="label">IP Class:</span> {{ result.ip_class }}</div>
+      <div class="row"><span class="label">IP Type:</span> {{ result.ip_type }}</div>
+      <div class="row"><span class="label">in-addr.arpa:</span> {{ result.in_addr }}</div>
+    </div>
+
+    <!-- Dynamic Subnet List -->
+    {% if result.show_subnet_list %}
+    <h2 class="section-title">{{ result.parent_desc }}</h2>
+    <div class="networks-table" id="networks-table">
+      <!-- Header Row -->
+      <div class="header-row">
+        <div>Network Address</div>
+        <div>Usable Host Range</div>
+        <div>Broadcast Address</div>
+      </div>
+
+      <!-- Network Rows -->
+      {% for net in result.all_nets %}
+      <div class="net-row {% if net.is_current %}current{% endif %}" 
+           data-page="{{ net.page }}" 
+           style="display: {% if net.page == result.current_page %}grid{% else %}none{% endif %};">
+        <div>{{ net.network }}</div>
+        <div>{{ net.range }}</div>
+        <div>{{ net.broadcast }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    
+    <!-- Pagination Controls -->
+    {% if result.total_pages > 1 %}
+    <div class="pagination" 
+         data-current-page="{{ result.current_page }}" 
+         data-total-pages="{{ result.total_pages }}"
+         data-window-start="{{ result.window_start_page }}"
+         data-window-end="{{ result.window_end_page }}">
+      <button class="pagination-btn" id="prev-page" disabled>Previous</button>
+      <span class="pagination-info">
+        Page <span id="current-page-num">{{ result.current_page }}</span> of <span id="total-pages-num">{{ result.total_pages }}</span>
+      </span>
+      <button class="pagination-btn" id="next-page">Next</button>
+    </div>
+    {% endif %}
+    {% else %}
+    <h2 class="section-title">{{ result.parent_desc }}</h2>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <!-- Theme Toggle + Copy Button Script -->
+  <script>
+    const toggle = document.getElementById('theme-toggle');
+    const root = document.documentElement;
+
+    const updateIcon = () => {
+      toggle.textContent = root.classList.contains('dark-mode') ? 'Sun' : 'Moon';
+    };
+    updateIcon();
+
+    toggle.addEventListener('click', () => {
+      const isDark = root.classList.toggle('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      updateIcon();
+    });
+
+    // Copy Button
+    const copyBtn = document.getElementById('copy-btn');
+    const data = document.getElementById('summary-data');
+    if (copyBtn && data) {
+      copyBtn.addEventListener('click', () => {
+        const text = data.textContent;
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(showCopied).catch(fallback);
+        } else {
+          fallback(text);
+        }
+      });
+    }
+
+    function showCopied() {
+      const orig = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      copyBtn.style.background = '#51cf66';
+      setTimeout(() => {
+        copyBtn.textContent = orig;
+        copyBtn.style.background = '';
+      }, 1500);
+    }
+
+    function fallback(text) {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      try {
+        document.execCommand('copy');
+        showCopied();
+      } catch (e) {
+        alert('Copy failed. Please select and copy manually.');
+      } finally {
+        document.body.removeChild(el);
+      }
+    }
+
+    // Pagination Script with AJAX window reloading
+    (function() {
+      const pagination = document.querySelector('.pagination');
+      if (!pagination) return;
+
+      const table = document.getElementById('networks-table');
+      const prevBtn = document.getElementById('prev-page');
+      const nextBtn = document.getElementById('next-page');
+      const currentPageNum = document.getElementById('current-page-num');
+      const totalPagesNum = document.getElementById('total-pages-num');
+      const form = document.getElementById('calc-form');
+      const pageInput = document.getElementById('page-input');
+      const sectionTitle = document.querySelector('.section-title');
+      const networksTableContainer = table ? table.parentElement : null;
+      
+      let currentPage = parseInt(pagination.dataset.currentPage) || 1;
+      let totalPages = parseInt(pagination.dataset.totalPages) || 1;
+      let windowStart = parseInt(pagination.dataset.windowStart) || 1;
+      let windowEnd = parseInt(pagination.dataset.windowEnd) || 1;
+      let rows = Array.from(table.querySelectorAll('.net-row'));
+      let isLoading = false;
+
+      async function loadPageWindow(page) {
+        if (isLoading) return;
+        isLoading = true;
+        
+        // Save scroll position relative to table
+        const tableRect = table ? table.getBoundingClientRect() : null;
+        const scrollOffset = tableRect ? window.scrollY + tableRect.top : null;
+        
+        // Disable buttons during load
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        
+        try {
+          const formData = new FormData(form);
+          formData.set('page', page);
+          
+          const response = await fetch('/', {
+            method: 'POST',
+            body: formData
+          });
+          
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          
+          // Extract new table and pagination
+          const newTable = doc.getElementById('networks-table');
+          const newPagination = doc.querySelector('.pagination');
+          const newSectionTitle = doc.querySelector('.section-title');
+          
+          if (newTable && table) {
+            // Update table content
+            table.innerHTML = newTable.innerHTML;
+            rows = Array.from(table.querySelectorAll('.net-row'));
+            
+            // Update section title if it exists
+            if (newSectionTitle && sectionTitle) {
+              sectionTitle.textContent = newSectionTitle.textContent;
+            }
+            
+            // Update pagination info
+            if (newPagination) {
+              const newCurrentPage = parseInt(newPagination.dataset.currentPage);
+              const newTotalPages = parseInt(newPagination.dataset.totalPages);
+              const newWindowStart = parseInt(newPagination.dataset.windowStart);
+              const newWindowEnd = parseInt(newPagination.dataset.windowEnd);
+              
+              // Only update if we got valid values
+              if (!isNaN(newCurrentPage)) currentPage = newCurrentPage;
+              if (!isNaN(newTotalPages)) totalPages = newTotalPages;
+              if (!isNaN(newWindowStart)) windowStart = newWindowStart;
+              if (!isNaN(newWindowEnd)) windowEnd = newWindowEnd;
+              
+              // Update pagination element data attributes
+              pagination.dataset.currentPage = currentPage;
+              pagination.dataset.totalPages = totalPages;
+              pagination.dataset.windowStart = windowStart;
+              pagination.dataset.windowEnd = windowEnd;
+              
+              currentPageNum.textContent = currentPage;
+              totalPagesNum.textContent = totalPages;
+            }
+            
+            // Show the current page after loading
+            rows.forEach(row => {
+              const rowPage = parseInt(row.dataset.page);
+              row.style.display = rowPage === currentPage ? 'grid' : 'none';
+            });
+            
+            // Restore scroll position
+            if (scrollOffset !== null) {
+              const newTableRect = table.getBoundingClientRect();
+              const newScrollY = scrollOffset - newTableRect.top + window.scrollY;
+              window.scrollTo({ top: newScrollY, behavior: 'instant' });
+            }
+          }
+        } catch (error) {
+          console.error('Error loading page:', error);
+          // Fallback to regular form submission
+          pageInput.value = page;
+          form.submit();
+          return;
+        } finally {
+          isLoading = false;
+          updateButtons();
+        }
+      }
+
+      function updateButtons() {
+        prevBtn.disabled = currentPage === 1 || isLoading;
+        nextBtn.disabled = currentPage === totalPages || isLoading;
+      }
+
+      function showPage(page) {
+        const targetPage = Math.max(1, Math.min(page, totalPages));
+        
+        // Check if target page is within the current window
+        const isInWindow = targetPage >= windowStart && targetPage <= windowEnd;
+        
+        // Only reload if:
+        // 1. Page is outside the window, OR
+        // 2. We're within 2 pages of the window edge (to preload next window)
+        //    - Near start: targetPage is within 2 pages of windowStart AND we can go back
+        //    - Near end: targetPage is within 2 pages of windowEnd AND we can go forward
+        const nearWindowStart = (targetPage - windowStart) <= 2;
+        const nearWindowEnd = (windowEnd - targetPage) <= 2;
+        
+        const shouldReload = !isInWindow || 
+          (nearWindowStart && targetPage > 1 && windowStart > 1) ||
+          (nearWindowEnd && targetPage < totalPages && windowEnd < totalPages);
+        
+        if (shouldReload) {
+          loadPageWindow(targetPage);
+          return;
+        }
+        
+        // Page is within window and not near edge - just show/hide rows
+        currentPage = targetPage;
+        rows.forEach(row => {
+          const rowPage = parseInt(row.dataset.page);
+          row.style.display = rowPage === currentPage ? 'grid' : 'none';
+        });
+
+        // Update buttons and display
+        updateButtons();
+        currentPageNum.textContent = currentPage;
+      }
+
+      prevBtn.addEventListener('click', () => showPage(currentPage - 1));
+      nextBtn.addEventListener('click', () => showPage(currentPage + 1));
+
+      // Initialize: rows are already hidden/shown via inline styles, just update buttons
+      updateButtons();
+    })();
+  </script>
+</body>
+</html>
