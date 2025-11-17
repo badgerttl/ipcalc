@@ -105,8 +105,3 @@ ipcalc/
 - **Frontend**: HTML, CSS, JavaScript
 - **Network Calculations**: Python `ipaddress` library
 - **Containerization**: Docker, Docker Compose
-
-## License
-
-[Add your license here]
-
